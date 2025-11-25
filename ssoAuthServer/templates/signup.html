@@ -3,40 +3,39 @@
 <head>
     <title>Sign Up</title>
 </head>
+<link rel="stylesheet" href="../static/style.css">
 <body>
+<div id="form-container">
+    <h2>Create Account</h2>
 
-<h2>Create Account</h2>
+    {% if messages %}
+    <ul style="color:red;">
+        {% for msg in messages %}
+        <li>{{ msg }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
 
-{% if messages %}
-<ul style="color:red;">
-    {% for msg in messages %}
-    <li>{{ msg }}</li>
-    {% endfor %}
-</ul>
-{% endif %}
+    <form method="POST" action="/signup">
+        {% csrf_token %}
 
-<form method="POST" action="/signup">
-    {% csrf_token %}
+        <!-- OAuth Params -->
+        {% for key, value in params.items %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
 
-    <!-- OAuth Params -->
-    {% for key, value in params.items %}
-    <input type="hidden" name="{{ key }}" value="{{ value }}">
-    {% endfor %}
+        <input name="username" placeholder="Username">
 
-    <label>Username</label><br>
-    <input name="username"><br><br>
+        <input name="email" type="email" placeholder="Email">
 
-    <label>Email</label><br>
-    <input name="email" type="email"><br><br>
+        <input name="password" type="password" placeholder="Password">
 
-    <label>Password</label><br>
-    <input name="password" type="password"><br><br>
+        <input name="confirm_password" type="password" placeholder="Re-enter Password">
 
-    <label>Confirm Password</label><br>
-    <input name="confirm_password" type="password"><br><br>
+        <button type="submit">Create Account</button>
+    </form>
 
-    <button type="submit">Create Account</button>
-</form>
+</div>
 
 </body>
 </html>
