@@ -213,11 +213,13 @@ def authorize(request):
     final_redirect = redirect_uri + "?" + urllib.parse.urlencode(query)
     return redirect(final_redirect)
 
+@csrf_exempt
 def login_view(request):
     """
     GET: render login page
     POST: validate credentials, create SSO session, redirect to /authorize
     """
+    print(settings.SSO_PRIVATE_KEY_PATH)
 
     # Extract all OAuth parameters (they MUST be forwarded back to /authorize)
     oauth_params = {
@@ -235,6 +237,9 @@ def login_view(request):
         return render(request, "login.html", {"params": oauth_params})
 
     # POST → handle login
+    # body = json.loads(request.body.decode())
+    # username = body.get("username")
+    # password = body.get("password")
     username = request.POST.get("username")
     password = request.POST.get("password")
 

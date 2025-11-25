@@ -17,7 +17,7 @@ class AuthUser(models.Model):
 
 class OAuthClient(models.Model):
     client_id = models.CharField(max_length=100, primary_key=True)
-    client_secret_hash = models.CharField(max_length=256)
+    client_secret_hash = models.CharField(max_length=256, null=True, blank=True)
     redirect_uris = models.JSONField()  # Better than TextField
     grant_types = models.JSONField()
     response_types = models.JSONField()
