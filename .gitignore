@@ -1,0 +1,11 @@
+my.cnf
+ssoAuthServer/__pycache__/
+ssoAuthServer/migrations/__pycache__/
+ssoAuthServer/migrations/*.pyc
+ssoAuthServer/migrations/
+ssoAuthServer/management/commands/__pycache__/
+mysite/__pycache__/
+mysite/settings.py
+keys/
+db.sqlite3
+*.log
