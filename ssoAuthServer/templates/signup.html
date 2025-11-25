@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="../static/style.css">
 <body>
 <div id="form-container">
-    <h2>Create Account</h2>
+    
 
     {% if messages %}
     <ul style="color:red;">
@@ -17,6 +17,7 @@
     {% endif %}
 
     <form method="POST" action="/signup">
+        <h2>Create Account</h2>
         {% csrf_token %}
 
         <!-- OAuth Params -->
