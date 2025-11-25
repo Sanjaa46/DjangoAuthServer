@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sign Up</title>
+</head>
+<body>
+
+<h2>Create Account</h2>
+
+{% if messages %}
+<ul style="color:red;">
+    {% for msg in messages %}
+    <li>{{ msg }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<form method="POST" action="/signup">
+    {% csrf_token %}
+
+    <!-- OAuth Params -->
+    {% for key, value in params.items %}
+    <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+
+    <label>Username</label><br>
+    <input name="username"><br><br>
+
+    <label>Email</label><br>
+    <input name="email" type="email"><br><br>
+
+    <label>Password</label><br>
+    <input name="password" type="password"><br><br>
+
+    <label>Confirm Password</label><br>
+    <input name="confirm_password" type="password"><br><br>
+
+    <button type="submit">Create Account</button>
+</form>
+
+</body>
+</html>

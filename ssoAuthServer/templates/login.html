@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSO Login</title>
+</head>
+<body>
+    <h2>Sign In</h2>
+
+    {% if messages %}
+    <ul style="color:red;">
+        {% for msg in messages %}
+        <li>{{ msg }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="POST" action="/login">
+        {% csrf_token %}
+
+        <input type="hidden" name="client_id" value="{{ params.client_id }}">
+        <input type="hidden" name="redirect_uri" value="{{ params.redirect_uri }}">
+        <input type="hidden" name="response_type" value="{{ params.response_type }}">
+        <input type="hidden" name="scope" value="{{ params.scope }}">
+        <input type="hidden" name="state" value="{{ params.state }}">
+        <input type="hidden" name="code_challenge" value="{{ params.code_challenge }}">
+        <input type="hidden" name="code_challenge_method" value="{{ params.code_challenge_method }}">
+
+        <label>Username</label><br>
+        <input name="username"><br><br>
+
+        <label>Password</label><br>
+        <input name="password" type="password"><br><br>
+
+        <button type="submit">Login</button>
+    </form>
+
+</body>
+</html>
