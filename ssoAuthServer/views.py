@@ -182,12 +182,36 @@ def authorize(request):
         sso_session = Session.objects.get(pk=user_session_id)
     except Session.DoesNotExist:
         # Session missing → force login
-        return redirect("/login")
+        login_url = (
+            "/login?"
+            + urllib.parse.urlencode({
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "response_type": response_type,
+                "scope": scope,
+                "state": state,
+                "code_challenge": code_challenge,
+                "code_challenge_method": code_challenge_method,
+            })
+        )
+        return redirect(login_url)
 
     if sso_session.expires_at < timezone.now():
         # Session expired → logout & force login
         django_logout(request)
-        return redirect("/login")
+        login_url = (
+            "/login?"
+            + urllib.parse.urlencode({
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "response_type": response_type,
+                "scope": scope,
+                "state": state,
+                "code_challenge": code_challenge,
+                "code_challenge_method": code_challenge_method,
+            })
+        )
+        return redirect(login_url)
 
     # 5. User is authenticated → issue authorization code
     code = secrets.token_urlsafe(32)
@@ -303,7 +327,6 @@ def token(request):
     
     # grant_type = request.POST.get("grant_type")
     grant_type = body.get("grant_type")
-    print(grant_type)
 
     # ---------------------------------------------------------
     # 1. AUTHORIZATION CODE EXCHANGE
@@ -333,8 +356,7 @@ def token(request):
             return JsonResponse({"error": "invalid_grant"}, status=400)
 
         # PKCE verification
-        print(auth_code.code_challenge)
-        if not auth_code.code_challenge:
+        if auth_code.code_challenge is "None":
             if not code_verifier:
                 return JsonResponse({"error": "invalid_request"}, status=400)
 
@@ -464,7 +486,8 @@ def introspect(request):
         # for some deployments you may allow anonymous introspect for public tokens,
         # but default to requiring client auth
         return JsonResponse({"error": "invalid_client"}, status=401)
-
+    # body = json.loads(request.body.decode())
+    # token = body.get("token")
     token = request.POST.get("token")
     if not token:
         return JsonResponse({"error": "invalid_request"}, status=400)

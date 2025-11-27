@@ -10,4 +10,5 @@ urlpatterns =[
     path("userinfo", views.userinfo, name="userinfo"),
     path("signup", views.signup_view, name="signup"),
     path("api/signup", views.api_signup, name="api_signup"),
+    path("introspect", views.introspect, name="introspect"),
 ]
