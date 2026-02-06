@@ -153,7 +153,11 @@ def authorize(request):
         return HttpResponseBadRequest("Invalid client_id")
 
     # 3. Check redirect_uri is allowed
-    allowed_uris = client.redirect_uris["redirect_uris"]
+    if isinstance(client.redirect_uris, dict):
+        allowed_uris = client.redirect_uris.get("redirect_uris", [])
+    else:
+        allowed_uris = client.redirect_uris
+    
 
     if redirect_uri not in allowed_uris:
         return HttpResponseBadRequest("Invalid redirect_uri")
@@ -212,7 +216,7 @@ def authorize(request):
             })
         )
         return redirect(login_url)
-
+    # sso_session = Session.objects.get(pk="1")
     # 5. User is authenticated → issue authorization code
     code = secrets.token_urlsafe(32)
 
@@ -235,7 +239,12 @@ def authorize(request):
         query["state"] = state
 
     final_redirect = redirect_uri + "?" + urllib.parse.urlencode(query)
-    return redirect(final_redirect)
+    # return redirect(final_redirect)
+    return JsonResponse({
+        "success": True,
+        "code": code,
+        "redirect_uri": final_redirect,
+    })
 
 @csrf_exempt
 def login_view(request):
@@ -243,7 +252,6 @@ def login_view(request):
     GET: render login page
     POST: validate credentials, create SSO session, redirect to /authorize
     """
-    print(settings.SSO_PRIVATE_KEY_PATH)
 
     # Extract all OAuth parameters (they MUST be forwarded back to /authorize)
     oauth_params = {
@@ -261,11 +269,9 @@ def login_view(request):
         return render(request, "login.html", {"params": oauth_params})
 
     # POST → handle login
-    # body = json.loads(request.body.decode())
-    # username = body.get("username")
-    # password = body.get("password")
-    username = request.POST.get("username")
-    password = request.POST.get("password")
+    body = json.loads(request.body.decode())
+    username = body.get("username")
+    password = body.get("password")
 
     if not username or not password:
         messages.error(request, "Username and password required")
@@ -356,7 +362,7 @@ def token(request):
             return JsonResponse({"error": "invalid_grant"}, status=400)
 
         # PKCE verification
-        if auth_code.code_challenge is "None":
+        if auth_code.code_challenge == "None":
             if not code_verifier:
                 return JsonResponse({"error": "invalid_request"}, status=400)
 
@@ -450,7 +456,7 @@ def _authenticate_client(request):
         try:
             raw = base64.b64decode(auth_header.split(" ", 1)[1].strip()).decode()
             client_id, client_secret = raw.split(":", 1)
-        except Exception:
+        except (ValueError, IndexError, TypeError):
             return None
     else:
         client_id = request.POST.get("client_id")
@@ -486,8 +492,6 @@ def introspect(request):
         # for some deployments you may allow anonymous introspect for public tokens,
         # but default to requiring client auth
         return JsonResponse({"error": "invalid_client"}, status=401)
-    # body = json.loads(request.body.decode())
-    # token = body.get("token")
     token = request.POST.get("token")
     if not token:
         return JsonResponse({"error": "invalid_request"}, status=400)

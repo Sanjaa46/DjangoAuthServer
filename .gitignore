@@ -7,4 +7,8 @@ mysite/settings.py
 ssoAuthServer/keys/
 db.sqlite3
 *.log
+.vscode
 .vscode/
+venv/
+.env
+templates/django-sso-test-library.code-workspace
