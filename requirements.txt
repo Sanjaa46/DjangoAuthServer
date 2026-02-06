@@ -1,0 +1,15 @@
+asgiref==3.11.0
+bcrypt==5.0.0
+cffi==2.0.0
+cryptography==46.0.3
+Django==5.2.8
+django-cors-headers==4.9.0
+djangorestframework==3.16.1
+Faker==39.0.0
+jwcrypto==1.5.6
+mysqlclient==2.2.7
+pycparser==2.23
+PyJWT==2.10.1
+sqlparse==0.5.3
+typing_extensions==4.15.0
+tzdata==2025.3

@@ -7,3 +7,4 @@ mysite/settings.py
 ssoAuthServer/keys/
 db.sqlite3
 *.log
+.vscode/
