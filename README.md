@@ -26,7 +26,7 @@ A production-ready OAuth 2.0 authorization server implementing the Authorization
 
 1. **Clone the repository**
    ```bash
-   cd /Users/tuguldur/projects/django/django-sso
+   cd djangoauthserver
    ```
 
 2. **Install dependencies**
