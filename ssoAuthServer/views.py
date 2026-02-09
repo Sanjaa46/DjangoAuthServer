@@ -21,6 +21,7 @@ from django.contrib.auth.hashers import make_password
 import jwt
 import uuid
 import secrets
+import hashlib
 
 
 
@@ -239,12 +240,12 @@ def authorize(request):
         query["state"] = state
 
     final_redirect = redirect_uri + "?" + urllib.parse.urlencode(query)
-    # return redirect(final_redirect)
-    return JsonResponse({
-        "success": True,
-        "code": code,
-        "redirect_uri": final_redirect,
-    })
+    return redirect(final_redirect)
+    # return JsonResponse({
+    #     "success": True,
+    #     "code": code,
+    #     "redirect_uri": final_redirect,
+    # })
 
 @csrf_exempt
 def login_view(request):
@@ -269,13 +270,14 @@ def login_view(request):
         return render(request, "login.html", {"params": oauth_params})
 
     # POST → handle login
-    body = json.loads(request.body.decode())
-    username = body.get("username")
-    password = body.get("password")
+    # body = json.loads(request.body.decode())
+    username = request.POST.get("username")
+    password = request.POST.get("password")
 
     if not username or not password:
         messages.error(request, "Username and password required")
         return render(request, "login.html", {"params": oauth_params})
+
 
     # Authenticate user (manual — because you're not using Django's User)
     try:
@@ -555,7 +557,6 @@ def logout_view(request):
         # Destroy Django session / SSO session mapping
         sso_session_id = request.session.pop("sso_session_id", None)
         if sso_session_id:
-            # delete Session row if exists
             try:
                 s = Session.objects.get(pk=sso_session_id)
                 s.delete()
@@ -568,14 +569,20 @@ def logout_view(request):
         if post_logout_redirect_uri and client_id:
             try:
                 client = OAuthClient.objects.get(pk=client_id)
-                allowed = json.loads(client.redirect_uris)
-                if post_logout_redirect_uri in allowed:
-                    return redirect(post_logout_redirect_uri)
+                allowed = client.redirect_uris.get("redirect_uris", [])
+                
+                # For logout, be more flexible - allow base URLs
+                from urllib.parse import urlparse
+                redirect_base = urlparse(post_logout_redirect_uri).netloc
+                
+                for allowed_uri in allowed:
+                    if urlparse(allowed_uri).netloc == redirect_base:
+                        return redirect(post_logout_redirect_uri)
             except OAuthClient.DoesNotExist:
                 pass
 
-        # default: show simple logged out page or redirect home
-        return HttpResponse("Logged out", status=200)
+        return HttpResponse("Logged out successfully", status=200)
+
 
     elif request.method == "POST":
         # RP-initiated: require client auth
