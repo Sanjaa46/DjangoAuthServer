@@ -1,248 +1,141 @@
-# Django OAuth2 SSO Server - README
+# Django OAuth2 SSO Server
 
-A production-ready OAuth 2.0 authorization server implementing the Authorization Code Flow with PKCE.
+A production-ready OAuth 2.0 authorization server implementing the Authorization Code Flow with PKCE, featuring phone number-based authentication and OTP verification.
 
 ## Features
 
-- ✅ OAuth 2.0 Authorization Code Flow with PKCE
-- ✅ JWT access tokens (HS256)
-- ✅ Token introspection (RFC 7662)
-- ✅ OIDC-compatible UserInfo endpoint
-- ✅ Refresh token rotation
-- ✅ Session management
-- ✅ Token blacklisting
-- ✅ User registration and authentication
-- ✅ CORS support
+- ✅ **OAuth 2.0 Authorization Code Flow with PKCE** (RFC 7636)
+- ✅ **Phone Number Authentication**: Users sign up and login with their mobile number.
+- ✅ **SMS OTP Verification**: Integrated with `moni.mn` SMS gateway for verifying phone numbers during registration.
+- ✅ **JWT Access Tokens**: Signed using HS256 algorithm.
+- ✅ **Refresh Token Rotation**: Secure long-term sessions with automatic token rotation.
+- ✅ **Token Introspection** (RFC 7662): Standard endpoint for resource servers to validate tokens.
+- ✅ **OIDC-compatible UserInfo**: Returns user profile information.
+- ✅ **Session Management**: Server-side sessions with Redis backing.
+- ✅ **Token Blacklisting**: Immediate revocation capabilities.
+- ✅ **CORS Support**: Configurable Cross-Origin Resource Sharing.
+
+## Tech Stack
+
+- **Framework**: Django 5.2.8 + Django REST Framework 3.16.1
+- **Database**: MySQL (default) / SQLite (dev)
+- **Cache / Session Store**: Redis
+- **Cryptography**: PyJWT + Python Cryptography
+- **SMS Gateway**: Custom integration for OTP
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.x
-- MySQL
+- Python 3.10+
+- MySQL Server
+- Redis Server
 - pip
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   cd djangoauthserver
+   git clone <repository-url>
+   cd django-sso
    ```
 
-2. **Install dependencies**
+2. **Create and activate virtual environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # on Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Configure database**
+4. **Environment Configuration**
    
-   Edit `mysite/settings.py`:
-   ```python
-   DATABASES = {
-       'default': {
-           'ENGINE': 'django.db.backends.mysql',
-           'NAME': 'sso_db',
-           'USER': 'root',
-           'PASSWORD': 'admin',
-           'HOST': 'localhost',
-           'PORT': '3306',
-       }
-   }
+   Create a `.env` file in the project root:
+   ```env
+   SECRET_KEY=your-secure-secret-key-CHANGE-IN-PRODUCTION
+   DEBUG=True
+   DB_NAME=sso_db
+   DB_USER=root
+   DB_PASSWORD=yourpassword
+   DB_HOST=localhost
+   DB_PORT=3306
+   REDIS_URL=redis://127.0.0.1:6379/1
    ```
 
-4. **Run migrations**
+5. **Run Migrations**
    ```bash
    python manage.py makemigrations
    python manage.py migrate
    ```
 
-5. **Create superuser**
+6. **Create a Superuser**
    ```bash
    python manage.py createsuperuser
    ```
 
-6. **Start the server**
+7. **Start the Server**
    ```bash
    python manage.py runserver
    ```
 
-7. **Access Django Admin**
-   
-   Navigate to `http://localhost:8000/admin` and login with superuser credentials.
+   The server will start at `http://localhost:8000`.
 
-### Register OAuth Client
+### Register an OAuth Client
 
-1. Go to Django Admin → **OAuth Clients**
-2. Click **Add OAuth Client**
-3. Fill in:
-   - **Client ID**: `your_client_id`
-   - **Client Secret**: Generate a secure secret
-   - **Redirect URIs**: 
-     ```json
-     {"redirect_uris": ["http://localhost:8080/callback"]}
-     ```
+1. Access the Django Admin at `http://localhost:8000/admin`.
+2. Navigate to **Ssoauthserver > OAuth Clients**.
+3. Create a new client:
+   - **Client ID**: `your-client-id`
+   - **Client Secret**: Generate a secure string (hashed on save).
+   - **Redirect URIs**: `{"redirect_uris": ["http://localhost:8080/callback"]}`
    - **Grant Types**: `["authorization_code", "refresh_token"]`
    - **Response Types**: `["code"]`
-   - **Scope**: `openid profile email`
-   - **Client Name**: Your App Name
-   - **Is Confidential**: ✓ (checked)
+   - **Scope**: `openid profile phone`
+   - **Is Confidential**: Checked (True).
 
-## API Endpoints
+## Key Components
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/authorize` | GET | OAuth authorization |
-| `/token` | POST | Token exchange/refresh |
-| `/introspect` | POST | Token validation |
-| `/userinfo` | GET | User information |
-| `/logout` | GET/POST | Logout |
-| `/signup` | GET/POST | User registration |
-| `/api/signup` | POST | API user registration |
-| `/.well-known/jwks.json` | GET | Public keys |
+### Authentication Flow (Phone + OTP)
 
-See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for complete details.
+This server uses a phone-first authentication model. 
+1. **Signup**: User enters phone -> receives SMS OTP -> verifies OTP -> sets password.
+2. **Login**: User enters phone + password -> receives SSO session.
 
-## Configuration
-
-### Token Lifetimes
-
-Edit `mysite/settings.py`:
-
-```python
-SSO_ACCESS_TOKEN_EXP = 900  # 15 minutes
-SSO_REFRESH_TOKEN_EXP = 60 * 60 * 24 * 30  # 30 days
-```
-
-### CORS Settings
-
-```python
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
-```
-
-## Testing
-
-### Using Postman
-
-See [Postman Testing Guide](../../../.gemini/antigravity/brain/93cb701f-6cbf-42d4-bb61-ddd6e95260ba/postman_testing_guide.md) for detailed testing instructions.
-
-### Quick Test
-
-1. **Create a test user:**
-   ```bash
-   curl -X POST http://localhost:8000/api/signup \
-     -H "Content-Type: application/json" \
-     -d '{"username":"testuser","email":"test@example.com","password":"Test123!"}'
-   ```
-
-2. **Get authorization code** (browser):
-   ```
-   http://localhost:8000/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:8080/callback&response_type=code&scope=openid%20profile%20email&state=xyz&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256
-   ```
-
-3. **Exchange for tokens:**
-   ```bash
-   curl -X POST http://localhost:8000/token \
-     -H "Content-Type: application/json" \
-     -d '{"grant_type":"authorization_code","code":"AUTH_CODE","redirect_uri":"http://localhost:8080/callback","client_id":"YOUR_CLIENT_ID","code_verifier":"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"}'
-   ```
-
-## Database Schema
-
-### Tables
-
-- `ssoAuthServer_authuser` - User accounts
-- `ssoAuthServer_oauthclient` - OAuth clients
-- `ssoAuthServer_oauthcode` - Authorization codes
-- `refresh_token` - Refresh tokens
-- `session` - SSO sessions
-- `access_token_blacklist` - Revoked tokens
-
-See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed schema.
-
-## Security
-
-### Production Checklist
-
-- [ ] Use HTTPS for all endpoints
-- [ ] Set `DEBUG = False`
-- [ ] Generate strong `SECRET_KEY`
-- [ ] Set `SESSION_COOKIE_SECURE = True`
-- [ ] Set `ALLOWED_HOSTS` appropriately
-- [ ] Implement rate limiting
-- [ ] Enable audit logging
-- [ ] Set up token cleanup cron job
-- [ ] Use environment variables for secrets
-- [ ] Configure firewall rules
-
-### Current Security Features
-
-- ✅ PKCE required for authorization code flow
-- ✅ Password hashing (PBKDF2-SHA256)
-- ✅ Token rotation on refresh
-- ✅ Token blacklisting
-- ✅ Session expiration
-- ✅ CORS protection
-- ✅ CSRF protection
-
-## Troubleshooting
-
-### Common Issues
-
-**Port already in use:**
-```bash
-# Find process using port 8000
-lsof -i :8000
-# Kill the process
-kill -9 <PID>
-```
-
-**Database connection error:**
-- Verify MySQL is running
-- Check database credentials in `settings.py`
-- Ensure database `sso_db` exists
-
-**CORS errors:**
-- Add client origin to `CORS_ALLOWED_ORIGINS`
-- Ensure `CORS_ALLOW_CREDENTIALS = True`
-
-## Project Structure
+### Directory Structure
 
 ```
 django-sso/
 ├── manage.py
 ├── mysite/
-│   ├── settings.py       # Django settings
-│   ├── urls.py          # URL routing
+│   ├── settings.py       # Configuration (DB, Redis, JWT)
+│   ├── urls.py          # Root URL conf
 │   └── wsgi.py
 ├── ssoAuthServer/
-│   ├── models.py        # Data models
-│   ├── views.py         # API endpoints
-│   ├── urls.py          # App URLs
-│   ├── admin.py         # Django admin config
-│   └── keys/            # JWT keys
-├── requirements.txt     # Python dependencies
-└── API_DOCUMENTATION.md # Complete API docs
+│   ├── admin.py         # Admin interface
+│   ├── models.py        # AuthUser (Phone), OAuthClient, Tokens
+│   ├── views.py         # Auth logic (Login, Signup, OAuth Endpoints)
+│   ├── urls.py          # App URL conf
+│   ├── utils.py         # OTP generation & cache keys
+│   └── templates/       # Login/Signup HTML pages
+└── requirements.txt
 ```
 
-## Dependencies
+## Configuration
 
-```
-Django==5.2.8
-djangorestframework
-django-cors-headers
-PyJWT
-mysqlclient
-```
+**Token Lifetimes** (in `settings.py`):
+- Access Token: 15 minutes (default)
+- Refresh Token: 30 days (default)
+- Authorization Code: 10 minutes (default)
+
+**Redis**: Used for caching OTPs and managing user sessions. Ensure your Redis server is running.
+
+## Testing
+
+For detailed endpoint documentation and testing instructions, please refer to [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
 
 ## License
 
 MIT
-
-## Support
-
-For detailed API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
-
-For testing guide, see [Postman Testing Guide](../../../.gemini/antigravity/brain/93cb701f-6cbf-42d4-bb61-ddd6e95260ba/postman_testing_guide.md)

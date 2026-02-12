@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSO Test Client Application</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .status.info {
+            background: #bee3f8;
+            color: #2c5282;
+            border-left: 4px solid #3182ce;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #38a169;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-item .value {
+            font-size: 14px;
+            color: #2d3748;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .config-section {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .config-item:last-child {
+            border-bottom: none;
+        }
+
+        .config-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .config-value {
+            color: #667eea;
+            font-family: monospace;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge.active {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .badge.inactive {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 SSO Test Client</h1>
+            <p>OAuth 2.0 Authorization Code Flow with PKCE</p>
+        </div>
+
+        <div class="content">
+            <!-- Configuration Section -->
+            <div class="section">
+                <h2>⚙️ Configuration</h2>
+                <div class="config-section">
+                    <div class="config-item">
+                        <span class="config-label">SSO Server</span>
+                        <span class="config-value" id="sso-server">http://localhost:8000</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Client ID</span>
+                        <span class="config-value" id="client-id">test-client-1</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Redirect URI</span>
+                        <span class="config-value" id="redirect-uri">http://localhost:8080</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Scope</span>
+                        <span class="config-value">openid profile</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auth Status Section -->
+            <div class="section">
+                <h2>📊 Authentication Status</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Status</label>
+                        <div class="value">
+                            <span class="badge inactive" id="auth-status">Not Authenticated</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <label>User ID</label>
+                        <div class="value" id="user-sub">-</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Phone</label>
+                        <div class="value" id="user-phone">-</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Token Expires</label>
+                        <div class="value" id="token-expires">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="section">
+                <h2>🚀 Actions</h2>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="startLogin()">1. Start Login Flow</button>
+                    <button class="btn-success" onclick="getUserInfo()">2. Get User Info</button>
+                    <button class="btn-warning" onclick="refreshToken()">3. Refresh Token</button>
+                    <button class="btn-secondary" onclick="introspectToken()">4. Introspect Token</button>
+                    <button class="btn-danger" onclick="logout()">5. Logout</button>
+                </div>
+            </div>
+
+            <!-- Response Section -->
+            <div class="section">
+                <h2>📋 Last Response</h2>
+                <div id="status-message"></div>
+                <div class="code-block" id="response-data">
+                    <pre>No data yet. Click an action button above to test the SSO flow.</pre>
+                </div>
+            </div>
+
+            <!-- Stored Tokens Section -->
+            <div class="section">
+                <h2>🔑 Stored Tokens</h2>
+                <div class="info-item">
+                    <label>Access Token</label>
+                    <div class="value" id="stored-access-token" style="font-size: 11px;">-</div>
+                </div>
+                <div class="info-item" style="margin-top: 10px;">
+                    <label>Refresh Token</label>
+                    <div class="value" id="stored-refresh-token" style="font-size: 11px;">-</div>
+                </div>
+                <div class="button-group" style="margin-top: 15px;">
+                    <button class="btn-secondary" onclick="clearTokens()">Clear Tokens</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            ssoServer: 'http://localhost:8000',
+            clientId: 'test-client-1',
+            clientSecret: 'test-secret-1', // Only needed for token exchange
+            redirectUri: window.location.origin + window.location.pathname,
+            scope: 'openid profile'
+        };
+
+        // Update config display
+        document.getElementById('sso-server').textContent = CONFIG.ssoServer;
+        document.getElementById('client-id').textContent = CONFIG.clientId;
+        document.getElementById('redirect-uri').textContent = CONFIG.redirectUri;
+
+        // Storage keys
+        const STORAGE_KEYS = {
+            accessToken: 'sso_access_token',
+            refreshToken: 'sso_refresh_token',
+            codeVerifier: 'sso_code_verifier',
+            state: 'sso_state'
+        };
+
+        // ==================== PKCE Helpers ====================
+        function generateRandomString(length) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+            let result = '';
+            const randomValues = new Uint8Array(length);
+            crypto.getRandomValues(randomValues);
+            for (let i = 0; i < length; i++) {
+                result += chars[randomValues[i] % chars.length];
+            }
+            return result;
+        }
+
+        async function sha256(plain) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plain);
+            return await crypto.subtle.digest('SHA-256', data);
+        }
+
+        function base64UrlEncode(arrayBuffer) {
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+
+        async function generateCodeChallenge(verifier) {
+            const hashed = await sha256(verifier);
+            return base64UrlEncode(hashed);
+        }
+
+        // ==================== UI Helpers ====================
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        function showResponse(data) {
+            const responseDiv = document.getElementById('response-data');
+            responseDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        function updateAuthStatus(authenticated, userInfo = null) {
+            const badge = document.getElementById('auth-status');
+            if (authenticated) {
+                badge.className = 'badge active';
+                badge.textContent = 'Authenticated';
+                
+                if (userInfo) {
+                    document.getElementById('user-sub').textContent = userInfo.sub || '-';
+                    document.getElementById('user-phone').textContent = userInfo.phone || '-';
+                }
+            } else {
+                badge.className = 'badge inactive';
+                badge.textContent = 'Not Authenticated';
+                document.getElementById('user-sub').textContent = '-';
+                document.getElementById('user-phone').textContent = '-';
+                document.getElementById('token-expires').textContent = '-';
+            }
+        }
+
+        function updateTokenDisplay() {
+            const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken);
+            const refreshToken = localStorage.getItem(STORAGE_KEYS.refreshToken);
+            
+            document.getElementById('stored-access-token').textContent = 
+                accessToken ? accessToken.substring(0, 50) + '...' : '-';
+            document.getElementById('stored-refresh-token').textContent = 
+                refreshToken ? refreshToken.substring(0, 50) + '...' : '-';
+            
+            // Try to decode JWT and show expiry
+            if (accessToken) {
+                try {
+                    const parts = accessToken.split('.');
+                    const payload = JSON.parse(atob(parts[1]));
+                    const expDate = new Date(payload.exp * 1000);
+                    document.getElementById('token-expires').textContent = expDate.toLocaleString();
+                } catch (e) {
+                    console.error('Error decoding token:', e);
+                }
+            }
+        }
+
+        // ==================== OAuth Flow Functions ====================
+        async function startLogin() {
+            try {
+                showStatus('Starting OAuth 2.0 login flow...', 'info');
+                
+                // Generate PKCE values
+                const codeVerifier = generateRandomString(128);
+                const codeChallenge = await generateCodeChallenge(codeVerifier);
+                const state = generateRandomString(32);
+                
+                // Store for later
+                localStorage.setItem(STORAGE_KEYS.codeVerifier, codeVerifier);
+                localStorage.setItem(STORAGE_KEYS.state, state);
+                
+                // Build authorization URL
+                const params = new URLSearchParams({
+                    client_id: CONFIG.clientId,
+                    redirect_uri: CONFIG.redirectUri,
+                    response_type: 'code',
+                    scope: CONFIG.scope,
+                    state: state,
+                    code_challenge: codeChallenge,
+                    code_challenge_method: 'S256'
+                });
+                
+                const authUrl = `${CONFIG.ssoServer}/authorize?${params.toString()}`;
+                
+                showResponse({
+                    action: 'Authorization Request',
+                    url: authUrl,
+                    code_verifier: codeVerifier,
+                    code_challenge: codeChallenge,
+                    state: state
+                });
+                
+                showStatus('Redirecting to SSO server...', 'info');
+                
+                // Redirect to SSO server
+                setTimeout(() => {
+                    window.location.href = authUrl;
+                }, 1500);
+                
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                showResponse({ error: error.message });
+            }
+        }
+
+        async function handleCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+            
+            if (error) {
+                showStatus(`OAuth Error: ${error}`, 'error');
+                showResponse({ error: error });
+                return;
+            }
+            
+            if (!code) {
+                return; // Not a callback
+            }
+            
+            try {
+                showStatus('Authorization code received, exchanging for tokens...', 'info');
+                
+                // Verify state
+                const storedState = localStorage.getItem(STORAGE_KEYS.state);
+                if (state !== storedState) {
+                    throw new Error('State mismatch - possible CSRF attack');
+                }
+                
+                // Get code verifier
+                const codeVerifier = localStorage.getItem(STORAGE_KEYS.codeVerifier);
+                if (!codeVerifier) {
+                    throw new Error('Code verifier not found');
+                }
+                
+                // Exchange code for tokens
+                const tokenResponse = await fetch(`${CONFIG.ssoServer}/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        grant_type: 'authorization_code',
+                        code: code,
+                        redirect_uri: CONFIG.redirectUri,
+                        client_id: CONFIG.clientId,
+                        code_verifier: codeVerifier
+                    })
+                });
+                
+                const tokens = await tokenResponse.json();
+                
+                if (!tokenResponse.ok) {
+                    throw new Error(tokens.error || 'Token exchange failed');
+                }
+                
+                // Store tokens
+                localStorage.setItem(STORAGE_KEYS.accessToken, tokens.access_token);
+                localStorage.setItem(STORAGE_KEYS.refreshToken, tokens.refresh_token);
+                
+                // Clean up
+                localStorage.removeItem(STORAGE_KEYS.codeVerifier);
+                localStorage.removeItem(STORAGE_KEYS.state);
+                
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                showStatus('Login successful! Tokens received.', 'success');
+                showResponse(tokens);
+                updateAuthStatus(true);
+                updateTokenDisplay();
+                
+                // Automatically get user info
+                setTimeout(() => getUserInfo(), 1000);
+                
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                showResponse({ error: error.message });
+            }
+        }
+
+        async function getUserInfo() {
+            try {
+                const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken);
+                if (!accessToken) {
+                    throw new Error('No access token. Please login first.');
+                }
+                
+                showStatus('Fetching user information...', 'info');
+                
+                const response = await fetch(`${CONFIG.ssoServer}/userinfo`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                const userInfo = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(userInfo.error || 'Failed to fetch user info');
+                }
+                
+                showStatus('User information retrieved successfully!', 'success');
+                showResponse(userInfo);
+                updateAuthStatus(true, userInfo);
+                
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                showResponse({ error: error.message });
+            }
+        }
+
+        async function refreshToken() {
+            try {
+                const refreshToken = localStorage.getItem(STORAGE_KEYS.refreshToken);
+                if (!refreshToken) {
+                    throw new Error('No refresh token available');
+                }
+                
+                showStatus('Refreshing access token...', 'info');
+                
+                const response = await fetch(`${CONFIG.ssoServer}/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'refresh_token',
+                        refresh_token: refreshToken,
+                        client_id: CONFIG.clientId
+                    })
+                });
+                
+                const tokens = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(tokens.error || 'Token refresh failed');
+                }
+                
+                // Update stored tokens
+                localStorage.setItem(STORAGE_KEYS.accessToken, tokens.access_token);
+                localStorage.setItem(STORAGE_KEYS.refreshToken, tokens.refresh_token);
+                
+                showStatus('Token refreshed successfully!', 'success');
+                showResponse(tokens);
+                updateTokenDisplay();
+                
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                showResponse({ error: error.message });
+            }
+        }
+
+        async function introspectToken() {
+            try {
+                const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken);
+                if (!accessToken) {
+                    throw new Error('No access token to introspect');
+                }
+                
+                showStatus('Introspecting token...', 'info');
+                
+                // Create Basic Auth header
+                const credentials = btoa(`${CONFIG.clientId}:${CONFIG.clientSecret}`);
+                
+                const response = await fetch(`${CONFIG.ssoServer}/introspect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `Basic ${credentials}`
+                    },
+                    body: new URLSearchParams({
+                        token: accessToken
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Introspection failed');
+                }
+                
+                showStatus('Token introspection completed!', 'success');
+                showResponse(result);
+                
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                showResponse({ error: error.message });
+            }
+        }
+
+        async function logout() {
+            try {
+                showStatus('Logging out...', 'info');
+                
+                // Call logout endpoint - it will return JSON instead of redirecting
+                const response = await fetch(
+                    `${CONFIG.ssoServer}/logout?client_id=${CONFIG.clientId}&post_logout_redirect_uri=${CONFIG.redirectUri}`,
+                    {
+                        method: 'GET',
+                        credentials: 'include',  // Send cookies
+                        headers: {
+                            'Accept': 'application/json'  // Request JSON response
+                        }
+                    }
+                );
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Logout failed');
+                }
+                
+                // Clear local tokens
+                clearTokens();
+                
+                showStatus('Logged out successfully!', 'success');
+                showResponse(data);
+                updateAuthStatus(false);
+                
+            } catch (error) {
+                // Even if server request fails, clear local tokens
+                clearTokens();
+                showStatus(`Logout completed (${error.message})`, 'success');
+                showResponse({ result: 'Local tokens cleared', note: error.message });
+                updateAuthStatus(false);
+            }
+        }
+
+        function clearTokens() {
+            localStorage.removeItem(STORAGE_KEYS.accessToken);
+            localStorage.removeItem(STORAGE_KEYS.refreshToken);
+            localStorage.removeItem(STORAGE_KEYS.codeVerifier);
+            localStorage.removeItem(STORAGE_KEYS.state);
+            updateTokenDisplay();
+            updateAuthStatus(false);
+            showStatus('Tokens cleared from local storage', 'info');
+        }
+
+        // ==================== Initialize ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check if we have tokens
+            const hasTokens = localStorage.getItem(STORAGE_KEYS.accessToken);
+            if (hasTokens) {
+                updateAuthStatus(true);
+                updateTokenDisplay();
+                showStatus('Found existing tokens. Click "Get User Info" to verify.', 'info');
+            }
+            
+            // Handle OAuth callback
+            handleCallback();
+        });
+    </script>
+</body>
+</html>

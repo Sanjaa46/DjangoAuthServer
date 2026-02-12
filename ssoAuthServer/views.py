@@ -303,13 +303,7 @@ def authorize(request):
         query["state"] = state
 
     final_redirect = redirect_uri + "?" + urllib.parse.urlencode(query)
-    # return redirect(final_redirect)
-    return JsonResponse({
-        "success": True,
-        "code": code,
-        "state": state,
-        "redirect_uri": final_redirect,
-    })
+    return redirect(final_redirect)
 
 @csrf_exempt
 def login_view(request):
@@ -369,11 +363,12 @@ def login_view(request):
 
     # Store session ID inside Django session cookie
     request.session["sso_session_id"] = sso_session.session_id
+    request.session.save()
 
     # Redirect back to /authorize with all params
     qs = urllib.parse.urlencode({k: v for k, v in oauth_params.items() if v})
-    # return redirect(f"/authorize?{qs}")
-    return HttpResponse(qs, content_type="text/plain")
+    return redirect(f"/authorize?{qs}")
+    # return HttpResponse(qs, content_type="text/plain")
 
 def generate_jwt(user, client_id):
     """
@@ -396,9 +391,18 @@ def token(request):
     if request.method != "POST":
         return JsonResponse({"error": "invalid_request"}, status=400)
 
-    body = json.loads(request.body.decode())
+    # Parse request body - support both JSON and form-encoded
+    content_type = request.META.get('CONTENT_TYPE', '')
     
-    # grant_type = request.POST.get("grant_type")
+    if 'application/json' in content_type:
+        try:
+            body = json.loads(request.body.decode())
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "invalid_request", "error_description": "Invalid JSON"}, status=400)
+    else:
+        # Form-encoded data (standard OAuth 2.0)
+        body = request.POST.dict()
+    
     grant_type = body.get("grant_type")
 
     # ---------------------------------------------------------
@@ -429,7 +433,7 @@ def token(request):
             return JsonResponse({"error": "invalid_grant"}, status=400)
 
         # PKCE verification
-        if auth_code.code_challenge == "None":
+        if auth_code.code_challenge and auth_code.code_challenge != "None":
             if not code_verifier:
                 return JsonResponse({"error": "invalid_request"}, status=400)
 
@@ -449,8 +453,8 @@ def token(request):
         # Save refresh token
         RefreshToken.objects.create(
             token=refresh_token,
-            user_id_id=user,
-            client_id_id=auth_code.client_id_id,
+            user_id=user,
+            client_id=auth_code.client_id,
             expires_at=timezone.now() + timedelta(days=30),
         )
 
@@ -468,8 +472,8 @@ def token(request):
     # 2. REFRESH TOKEN FLOW
     # ---------------------------------------------------------
     elif grant_type == "refresh_token":
-        refresh_token_val = request.POST.get("refresh_token")
-        client_id = request.POST.get("client_id")
+        refresh_token_val = body.get("refresh_token")
+        client_id = body.get("client_id")
 
         if not refresh_token_val or not client_id:
             return JsonResponse({"error": "invalid_request"}, status=400)
@@ -492,12 +496,12 @@ def token(request):
 
         RefreshToken.objects.create(
             token=new_refresh,
-            user=rt.user,
-            client=rt.client,
+            user_id=rt.user_id,
+            client_id=rt.client_id,
             expires_at=timezone.now() + timedelta(days=30),
         )
 
-        new_access = generate_jwt(rt.user, client_id)
+        new_access = generate_jwt(rt.user_id, client_id)
 
         return JsonResponse({
             "access_token": new_access,
@@ -505,6 +509,7 @@ def token(request):
             "expires_in": 900,
             "refresh_token": new_refresh,
         })
+
 
     # ---------------------------------------------------------
     # 3. UNSUPPORTED GRANT TYPE
@@ -581,7 +586,7 @@ def introspect(request):
             "active": active,
             "scope": payload.get("scope"),
             "client_id": payload.get("client_id"),
-            "username": payload.get("username"),
+            "phone": payload.get("phone"),
             "sub": payload.get("sub"),
             "exp": payload.get("exp"),
             "iat": payload.get("iat"),
@@ -611,9 +616,9 @@ def introspect(request):
 def logout_view(request):
     """
     Supports:
-    - GET: user-initiated logout (destroy SSO session cookie), optional redirect back to client.
-      Query params: post_logout_redirect_uri, client_id
-    - POST: RP-initiated logout (requires client auth). Form params: token (refresh token or id_token_hint)
+    - GET with redirect: user-initiated logout (browser navigation)
+    - GET without redirect or with Accept: application/json: return JSON
+    - POST: RP-initiated logout (requires client auth)
     """
     if request.method == "GET":
         post_logout_redirect_uri = request.GET.get("post_logout_redirect_uri")
@@ -629,6 +634,17 @@ def logout_view(request):
                 pass
 
         django_logout(request)
+
+        # Check if this is an AJAX/fetch request
+        accept_header = request.META.get('HTTP_ACCEPT', '')
+        is_ajax = 'application/json' in accept_header or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+        # If AJAX request, return JSON instead of redirecting
+        if is_ajax or not post_logout_redirect_uri:
+            return JsonResponse({
+                "result": "logged_out",
+                "message": "Successfully logged out"
+            }, status=200)
 
         # Validate redirect URI against client list if provided
         if post_logout_redirect_uri and client_id:
@@ -646,8 +662,10 @@ def logout_view(request):
             except OAuthClient.DoesNotExist:
                 pass
 
-        return HttpResponse("Logged out successfully", status=200)
-
+        return JsonResponse({
+            "result": "logged_out",
+            "message": "Successfully logged out"
+        }, status=200)
 
     elif request.method == "POST":
         # RP-initiated: require client auth
@@ -666,7 +684,7 @@ def logout_view(request):
             rt.save()
 
             # Optionally revoke all refresh tokens of that user/client
-            RefreshToken.objects.filter(user=rt.user, client=client).update(revoked=True)
+            RefreshToken.objects.filter(user_id=rt.user_id, client_id=client).update(revoked=True)
             return JsonResponse({"result": "revoked"})
         except RefreshToken.DoesNotExist:
             # If token looks like a JWT, try decode and blacklist jti
