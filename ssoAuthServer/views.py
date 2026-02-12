@@ -1,8 +1,9 @@
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST, require_GET
-from django.utils.decorators import method_decorator
 from django.conf import settings
+from ssoAuthServer.utils import otp_cache_key, pwd_token_cache_key
 from pathlib import Path
+import requests
 import json
 import urllib.parse
 from datetime import timedelta
@@ -15,15 +16,27 @@ import base64
 from django.contrib.auth.hashers import check_password
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
-from urllib.parse import urlencode
 from django.contrib.auth.hashers import make_password
-
+from django.core.cache import cache
+import random
 import jwt
 import uuid
 import secrets
 import hashlib
 
-
+def send_sms(phone, text):
+    try:
+        SMS_URL = "https://callpro.moni.mn/api/method/monify_sms.message.send_msg"
+        SMS_TIMEOUT = 10
+        payload = {"utas_dugaar": phone, "text": text, "type": "otp", "doctype": "Daily"}
+        r = requests.post(SMS_URL, json=payload, timeout=SMS_TIMEOUT)
+        if r.status_code != 200:
+            print(f"SMS failed [{r.status_code}]: {r.text}", "send_sms")
+            return "error"
+        return "ok"
+    except Exception:
+        print("send_sms exception", "send_sms")
+        return "error"
 
 def jwks_view(request):
     jwks_path = Path("ssoAuthServer/keys/jwks.json")
@@ -35,6 +48,8 @@ def jwks_view(request):
 def signup_view(request):
     """
     HTML Signup Page (GET + POST)
+    GET: Renders signup form
+    POST: Generates OTP and sends via SMS
     """
 
     # Extract OAuth params (must be passed back to login)
@@ -51,69 +66,129 @@ def signup_view(request):
     if request.method == "GET":
         return render(request, "signup.html", {"params": oauth_params})
 
-    # POST -----------------------------------------
-
+    # POST - Send OTP
     phone = request.POST.get("phone")
-    password = request.POST.get("password")
-    confirm = request.POST.get("confirm_password")
 
-    if not phone or not password:
-        messages.error(request, "All fields are required")
-        return render(request, "signup.html", {"params": oauth_params})
-
-    if password != confirm:
-        messages.error(request, "Passwords do not match")
-        return render(request, "signup.html", {"params": oauth_params})
+    if not phone:
+        return JsonResponse({"error": "phone_required"}, status=400)
 
     # Check if phone exists
     if AuthUser.objects.filter(phone=phone).exists():
-        messages.error(request, "Phone number already taken")
-        return render(request, "signup.html", {"params": oauth_params})
+        return JsonResponse({"error": "phone_already_exists"}, status=400)
 
-    # Create user
-    AuthUser.objects.create(
-        phone=phone,
-        password_hash=make_password(password),
-    )
+    # Generate and cache OTP
+    key = otp_cache_key(phone, "signup")
+    otp = f"{random.randint(1000, 9999)}"
+    cache.set(key, otp, timeout=300)  # OTP valid for 5 minutes
+    
+    # Send SMS
+    msg = f"OmniCapital: Таны баталгаажуулах код: {otp}. Код 5 минут хүчинтэй."
+    res = send_sms(phone, msg)
 
-    # Redirect to login WITH OAuth parameters
-    qs = urllib.parse.urlencode({k: v for k, v in oauth_params.items() if v})
-    return redirect(f"/login?{qs}")
+    if res != "ok":
+        return JsonResponse({"error": "sms_failed"}, status=500)
+    
+    return JsonResponse({"result": "otp_sent"}, status=200)
 
-@csrf_exempt
-def api_signup(request):
+def confirm_otp_view(request):
     """
-    API-only Signup (POST with JSON)
+    Verify OTP and return password token
+    POST: Verifies OTP from cache and returns a pwd_token for password setup
     """
     if request.method != "POST":
-        return JsonResponse({"error": "method_not_allowed"}, status=405)
+        return JsonResponse({"error": "invalid_method"}, status=405)
 
-    try:
-        body = json.loads(request.body.decode())
-    except:
-        return JsonResponse({"error": "invalid_json"}, status=400)
+    phone = request.POST.get("phone")
+    otp = request.POST.get("otp")
 
-    phone= body.get("phone")
-    password = body.get("password")
+    if not phone or not otp:
+        return JsonResponse({"error": "phone_and_otp_required"}, status=400)
 
-    if not phone or not password:
-        return JsonResponse({"error": "missing_fields"}, status=400)
-
+    # Check if phone already exists
     if AuthUser.objects.filter(phone=phone).exists():
-        return JsonResponse({"error": "phone_taken"}, status=400)
+        return JsonResponse({"error": "phone_already_exists"}, status=400)
 
-    user = AuthUser.objects.create(
-        phone=phone,
-        password_hash=make_password(password),
-    )
+    # Verify OTP from cache
+    key = otp_cache_key(phone, "signup")
+    cached_otp = cache.get(key)
+
+    if not cached_otp:
+        return JsonResponse({"error": "otp_expired"}, status=400)
+
+    if cached_otp != otp:
+        return JsonResponse({"error": "invalid_otp"}, status=400)
+
+    # OTP is valid - delete it from cache
+    cache.delete(key)
+
+    # Generate password token
+    pwd_token = secrets.token_urlsafe(32)
+    
+    # Store phone number with pwd_token in cache (valid for 10 minutes)
+    token_key = pwd_token_cache_key(pwd_token)
+    cache.set(token_key, phone, timeout=600)
 
     return JsonResponse({
-        "success": True,
-        "user": {
-            "id": user.id,
-            "phone": user.phone,
-        }
-    })
+        "result": "otp_verified",
+        "pwd_token": pwd_token
+    }, status=200)
+
+
+def set_password_view(request):
+    """
+    Set password for verified phone number
+    POST: Verifies pwd_token, creates user, and sets password
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "invalid_method"}, status=405)
+
+    pwd_token = request.POST.get("pwd_token")
+    password = request.POST.get("password")
+    password_confirm = request.POST.get("password_confirm")
+
+    if not pwd_token or not password:
+        return JsonResponse({"error": "pwd_token_and_password_required"}, status=400)
+
+    # Verify passwords match
+    if password != password_confirm:
+        return JsonResponse({"error": "passwords_do_not_match"}, status=400)
+
+    # Verify password token and get phone number
+    token_key = pwd_token_cache_key(pwd_token)
+    phone = cache.get(token_key)
+
+    if not phone:
+        return JsonResponse({"error": "invalid_or_expired_token"}, status=400)
+
+    # Check if user already exists (safety check)
+    if AuthUser.objects.filter(phone=phone).exists():
+        cache.delete(token_key)
+        return JsonResponse({"error": "user_already_exists"}, status=400)
+
+    # Validate password strength (optional - add your own rules)
+    if len(password) < 8:
+        return JsonResponse({"error": "password_too_short"}, status=400)
+
+    # Create user and set password
+    try:
+        user = AuthUser.objects.create(
+            phone=phone,
+            password_hash=make_password(password),
+            is_active=True
+        )
+        
+        # Delete the password token from cache
+        cache.delete(token_key)
+
+        return JsonResponse({
+            "result": "user_created",
+            "user_id": user.id
+        }, status=201)
+
+    except Exception as e:
+        return JsonResponse({"error": f"user_creation_failed: {str(e)}"}, status=500)
+
+
 
 def authorize(request):
     """
@@ -667,9 +742,3 @@ def userinfo(request):
     }
 
     return JsonResponse(data)
-
-
-
-
-
-

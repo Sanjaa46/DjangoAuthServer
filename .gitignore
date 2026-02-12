@@ -3,7 +3,6 @@ ssoAuthServer/__pycache__/
 ssoAuthServer/migrations/
 ssoAuthServer/management/commands/__pycache__/
 mysite/__pycache__/
-mysite/settings.py
 ssoAuthServer/keys/
 db.sqlite3
 *.log

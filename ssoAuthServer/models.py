@@ -23,8 +23,8 @@ class AuthUser(models.Model):
     class Meta:
         db_table = "ssoAuthServer_authuser"
 
-    def __str__(self):
-        return f"{self.phone}"
+    def __int__(self):
+        return self.id
 
 
 class OAuthClient(models.Model):

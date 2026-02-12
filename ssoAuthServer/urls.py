@@ -9,6 +9,7 @@ urlpatterns =[
     path("logout", views.logout_view, name="logout"),
     path("userinfo", views.userinfo, name="userinfo"),
     path("signup", views.signup_view, name="signup"),
-    path("api/signup", views.api_signup, name="api_signup"),
     path("introspect", views.introspect, name="introspect"),
+    path('confirm_otp', views.confirm_otp_view, name='confirm_otp'),
+    path('set_password', views.set_password_view, name='set_password'),
 ]

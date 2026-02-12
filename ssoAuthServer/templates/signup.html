@@ -2,12 +2,11 @@
 <html>
 <head>
     <title>Sign Up</title>
+    <link rel="stylesheet" href="../static/style.css">
 </head>
-<link rel="stylesheet" href="../static/style.css">
 <body>
 <div id="form-container">
     
-
     {% if messages %}
     <ul style="color:red;">
         {% for msg in messages %}
@@ -16,24 +15,247 @@
     </ul>
     {% endif %}
 
-    <form method="POST" action="/signup">
+    <!-- Step 1: Phone Number Entry -->
+    <div id="step-phone">
         <h2>Create Account</h2>
-        {% csrf_token %}
+        <div class="input-container">
+            <input id="phone" name="phone" placeholder="Phone Number" type="text">
+            <button id="send-otp-btn" type="button" onclick="send_otp()">Баталгаажуулах</button>
+        </div>
+    </div>
 
-        <!-- OAuth Params -->
-        {% for key, value in params.items %}
-        <input type="hidden" name="{{ key }}" value="{{ value }}">
-        {% endfor %}
-        <input name="phone" placeholder="Phone">
+    <!-- Step 2: OTP Verification (hidden initially) -->
+    <div id="step-otp" style="display:none;">
+        <h2>Enter OTP</h2>
+        <p>We've sent a verification code to <span id="phone-display"></span></p>
+        <div class="input-container">
+            <input id="otp" name="otp" placeholder="Enter OTP" type="text">
+        </div>
+        <button type="button" onclick="confirm_otp()">Confirm OTP</button>
+        <button type="button" onclick="resend_otp()" style="margin-left: 10px;">Resend OTP</button>
+    </div>
 
-        <input name="password" type="password" placeholder="Password">
+    <!-- Step 3: Password Setup (hidden initially) -->
+    <div id="step-password" style="display:none;">
+        <h2>Set Password</h2>
+        <div class="input-container">
+            <input id="password" name="password" placeholder="Password" type="password">
+        </div>
+        <div class="input-container">
+            <input id="password-confirm" name="password_confirm" placeholder="Confirm Password" type="password">
+        </div>
+        <button type="button" onclick="set_password()">Create Account</button>
+    </div>
 
-        <input name="confirm_password" type="password" placeholder="Re-enter Password">
-
-        <button type="submit">Create Account</button>
-    </form>
+    <!-- Step 4: Success (hidden initially) -->
+    <div id="step-success" style="display:none;">
+        <h2>Success!</h2>
+        <p>Your account has been created successfully.</p>
+        <a href="/login{% if params.client_id %}?client_id={{ params.client_id }}{% if params.redirect_uri %}&redirect_uri={{ params.redirect_uri }}{% endif %}{% if params.response_type %}&response_type={{ params.response_type }}{% endif %}{% if params.scope %}&scope={{ params.scope }}{% endif %}{% if params.state %}&state={{ params.state }}{% endif %}{% if params.code_challenge %}&code_challenge={{ params.code_challenge }}{% endif %}{% if params.code_challenge_method %}&code_challenge_method={{ params.code_challenge_method }}{% endif %}{% endif %}">
+            <button type="button">Go to Login</button>
+        </a>
+    </div>
 
 </div>
+
+<script>
+    // Store phone and pwd_token globally
+    let currentPhone = '';
+    let pwdToken = '';
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function send_otp() {
+        const phone = document.getElementById("phone").value.trim();
+        
+        if (!phone) {
+            alert("Please enter a phone number");
+            return;
+        }
+
+        currentPhone = phone;
+        const btn = document.getElementById("send-otp-btn");
+        btn.disabled = true;
+        btn.textContent = "Sending...";
+
+        fetch('/signup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({
+                'phone': phone
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.textContent = "Баталгаажуулах";
+            
+            if (data.error) {
+                if (data.error === "phone_already_exists") {
+                    alert("This phone number is already registered");
+                } else if (data.error === "sms_failed") {
+                    alert("Failed to send SMS. Please try again.");
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } else if (data.result === "otp_sent") {
+                // Show OTP step
+                document.getElementById("step-phone").style.display = "none";
+                document.getElementById("step-otp").style.display = "block";
+                document.getElementById("phone-display").textContent = phone;
+                alert("OTP sent successfully!");
+            }
+        })
+        .catch((error) => {
+            btn.disabled = false;
+            btn.textContent = "Баталгаажуулах";
+            console.error('Error:', error);
+            alert("An error occurred. Please try again.");
+        });
+    }
+
+    function resend_otp() {
+        send_otp();
+    }
+
+    function confirm_otp() {
+        const otp = document.getElementById("otp").value.trim();
+        
+        if (!otp) {
+            alert("Please enter the OTP");
+            return;
+        }
+
+        fetch('/confirm_otp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({
+                'phone': currentPhone,
+                'otp': otp
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                if (data.error === "invalid_otp") {
+                    alert("Invalid OTP. Please try again.");
+                } else if (data.error === "otp_expired") {
+                    alert("OTP has expired. Please request a new one.");
+                    document.getElementById("step-otp").style.display = "none";
+                    document.getElementById("step-phone").style.display = "block";
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } else if (data.result === "otp_verified") {
+                // Store pwd_token and show password setup
+                pwdToken = data.pwd_token;
+                document.getElementById("step-otp").style.display = "none";
+                document.getElementById("step-password").style.display = "block";
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            alert("An error occurred. Please try again.");
+        });
+    }
+
+    function set_password() {
+        const password = document.getElementById("password").value;
+        const passwordConfirm = document.getElementById("password-confirm").value;
+        
+        if (!password || !passwordConfirm) {
+            alert("Please enter both password fields");
+            return;
+        }
+
+        if (password !== passwordConfirm) {
+            alert("Passwords do not match");
+            return;
+        }
+
+        if (password.length < 8) {
+            alert("Password must be at least 8 characters long");
+            return;
+        }
+
+        fetch('/set_password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({
+                'pwd_token': pwdToken,
+                'password': password,
+                'password_confirm': passwordConfirm
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                if (data.error === "invalid_or_expired_token") {
+                    alert("Session expired. Please start over.");
+                    location.reload();
+                } else if (data.error === "passwords_do_not_match") {
+                    alert("Passwords do not match");
+                } else if (data.error === "password_too_short") {
+                    alert("Password must be at least 8 characters long");
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } else if (data.result === "user_created") {
+                // Show success step
+                document.getElementById("step-password").style.display = "none";
+                document.getElementById("step-success").style.display = "block";
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            alert("An error occurred. Please try again.");
+        });
+    }
+
+    // Allow Enter key to submit on each step
+    document.getElementById("phone").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            send_otp();
+        }
+    });
+
+    document.getElementById("otp").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            confirm_otp();
+        }
+    });
+
+    document.getElementById("password-confirm").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            set_password();
+        }
+    });
+</script>
 
 </body>
 </html>
