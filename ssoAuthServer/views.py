@@ -53,12 +53,11 @@ def signup_view(request):
 
     # POST -----------------------------------------
 
-    username = request.POST.get("username")
-    email = request.POST.get("email")
+    phone = request.POST.get("phone")
     password = request.POST.get("password")
     confirm = request.POST.get("confirm_password")
 
-    if not username or not email or not password:
+    if not phone or not password:
         messages.error(request, "All fields are required")
         return render(request, "signup.html", {"params": oauth_params})
 
@@ -66,19 +65,14 @@ def signup_view(request):
         messages.error(request, "Passwords do not match")
         return render(request, "signup.html", {"params": oauth_params})
 
-    # Check if username or email exists
-    if AuthUser.objects.filter(username=username).exists():
-        messages.error(request, "Username already taken")
-        return render(request, "signup.html", {"params": oauth_params})
-
-    if AuthUser.objects.filter(email=email).exists():
-        messages.error(request, "Email already registered")
+    # Check if phone exists
+    if AuthUser.objects.filter(phone=phone).exists():
+        messages.error(request, "Phone number already taken")
         return render(request, "signup.html", {"params": oauth_params})
 
     # Create user
     AuthUser.objects.create(
-        username=username,
-        email=email,
+        phone=phone,
         password_hash=make_password(password),
     )
 
@@ -99,22 +93,17 @@ def api_signup(request):
     except:
         return JsonResponse({"error": "invalid_json"}, status=400)
 
-    username = body.get("username")
-    email = body.get("email")
+    phone= body.get("phone")
     password = body.get("password")
 
-    if not username or not email or not password:
+    if not phone or not password:
         return JsonResponse({"error": "missing_fields"}, status=400)
 
-    if AuthUser.objects.filter(username=username).exists():
-        return JsonResponse({"error": "username_taken"}, status=400)
-
-    if AuthUser.objects.filter(email=email).exists():
-        return JsonResponse({"error": "email_taken"}, status=400)
+    if AuthUser.objects.filter(phone=phone).exists():
+        return JsonResponse({"error": "phone_taken"}, status=400)
 
     user = AuthUser.objects.create(
-        username=username,
-        email=email,
+        phone=phone,
         password_hash=make_password(password),
     )
 
@@ -122,8 +111,7 @@ def api_signup(request):
         "success": True,
         "user": {
             "id": user.id,
-            "username": user.username,
-            "email": user.email,
+            "phone": user.phone,
         }
     })
 
@@ -240,12 +228,13 @@ def authorize(request):
         query["state"] = state
 
     final_redirect = redirect_uri + "?" + urllib.parse.urlencode(query)
-    return redirect(final_redirect)
-    # return JsonResponse({
-    #     "success": True,
-    #     "code": code,
-    #     "redirect_uri": final_redirect,
-    # })
+    # return redirect(final_redirect)
+    return JsonResponse({
+        "success": True,
+        "code": code,
+        "state": state,
+        "redirect_uri": final_redirect,
+    })
 
 @csrf_exempt
 def login_view(request):
@@ -271,19 +260,19 @@ def login_view(request):
 
     # POST → handle login
     # body = json.loads(request.body.decode())
-    username = request.POST.get("username")
+    phone = request.POST.get("phone")
     password = request.POST.get("password")
 
-    if not username or not password:
-        messages.error(request, "Username and password required")
+    if not phone or not password:
+        messages.error(request, "Phone and password required")
         return render(request, "login.html", {"params": oauth_params})
 
 
     # Authenticate user (manual — because you're not using Django's User)
     try:
-        user = AuthUser.objects.get(username=username)
+        user = AuthUser.objects.get(phone=phone)
     except AuthUser.DoesNotExist:
-        messages.error(request, "Invalid username or password")
+        messages.error(request, "Invalid phone or password")
         return render(request, "login.html", {"params": oauth_params})
 
     if not user.is_active:
@@ -292,7 +281,7 @@ def login_view(request):
 
     # Compare hashed password
     if not check_password(password, user.password_hash):
-        messages.error(request, "Invalid username or password")
+        messages.error(request, "Invalid phone or password")
         return render(request, "login.html", {"params": oauth_params})
 
     # Create SSO session
@@ -308,7 +297,8 @@ def login_view(request):
 
     # Redirect back to /authorize with all params
     qs = urllib.parse.urlencode({k: v for k, v in oauth_params.items() if v})
-    return redirect(f"/authorize?{qs}")
+    # return redirect(f"/authorize?{qs}")
+    return HttpResponse(qs, content_type="text/plain")
 
 def generate_jwt(user, client_id):
     """
@@ -316,7 +306,7 @@ def generate_jwt(user, client_id):
     """
     payload = {
         "sub": str(user.id),
-        "username": user.username,
+        "phone": user.phone,
         "client_id": client_id,
         "exp": timezone.now() + timedelta(minutes=15),
         "iat": timezone.now(),
@@ -673,15 +663,8 @@ def userinfo(request):
     # ---- Build userinfo response ----
     data = {
         "sub": str(user.id),
-        "username": user.username,
-        "email": user.email,
-        "email_verified": True,   # optional — you can change this
+        "phone": user.phone,
     }
-
-    # Optional fields if you want OIDC compatibility
-    # (Add fields to your AuthUser model if needed)
-    # data["name"] = user.full_name
-    # data["picture"] = user.avatar_url
 
     return JsonResponse(data)
 

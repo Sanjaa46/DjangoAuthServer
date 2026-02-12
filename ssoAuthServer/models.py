@@ -1,19 +1,31 @@
 from django.db import models
 from django.utils import timezone
+from django.core.validators import RegexValidator
+
+
+phone_validator = RegexValidator(
+    regex=r'^\+?\d{8,15}$',
+    message="Enter a valid phone number in E.164 format."
+)
+
 
 class AuthUser(models.Model):
     id = models.AutoField(primary_key=True)
-    username = models.CharField(max_length=150, unique=True)
-    email = models.EmailField(unique=True)
+    phone = models.CharField(
+        max_length=15,
+        unique=True,
+        validators=[phone_validator],
+    )
     password_hash = models.CharField(max_length=256)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    
+
     class Meta:
-        db_table = 'ssoAuthServer_authuser'
-    
-    def __int__(self):
-        return self.id
+        db_table = "ssoAuthServer_authuser"
+
+    def __str__(self):
+        return f"{self.phone}"
+
 
 class OAuthClient(models.Model):
     client_id = models.CharField(max_length=100, primary_key=True)
