@@ -205,7 +205,7 @@ rollback:production:
   environment:
     name: production
     url: https://sso.yourdomain.com
-    action: rollback
+    action: start
   only:
     - main
   when: manual
