@@ -1,0 +1,211 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  # Docker image names
+  IMAGE_NAME: $CI_REGISTRY_IMAGE
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+  # Python version for testing
+  PYTHON_VERSION: "3.11"
+
+# Templates
+.docker_login: &docker_login
+  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+
+# ==================== TEST STAGE ====================
+test:lint:
+  stage: test
+  image: python:${PYTHON_VERSION}-slim
+  before_script:
+    - pip install flake8 black isort
+  script:
+    - echo "Running code quality checks..."
+    - flake8 ssoAuthServer/ mysite/ --max-line-length=120 --exclude=migrations,__pycache__,*.pyc --count --statistics
+    - black --check ssoAuthServer/ mysite/ --exclude migrations
+    - isort --check-only ssoAuthServer/ mysite/ --skip migrations
+  allow_failure: true
+  only:
+    - merge_requests
+    - develop
+    - main
+
+test:security:
+  stage: test
+  image: python:${PYTHON_VERSION}-slim
+  before_script:
+    - pip install bandit safety
+  script:
+    - echo "Running security checks..."
+    - bandit -r ssoAuthServer/ mysite/ -f json -o bandit-report.json || true
+    - safety check --json || true
+  artifacts:
+    reports:
+      junit: bandit-report.json
+    expire_in: 1 week
+  allow_failure: true
+  only:
+    - merge_requests
+    - develop
+    - main
+
+test:unit:
+  stage: test
+  image: python:${PYTHON_VERSION}-slim
+  services:
+    - redis:7-alpine
+    - mysql:8.0
+  variables:
+    MYSQL_ROOT_PASSWORD: test_password
+    MYSQL_DATABASE: sso_test_db
+    DB_NAME: sso_test_db
+    DB_USER: root
+    DB_PASSWORD: test_password
+    DB_HOST: mysql
+    DB_PORT: "3306"
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    SECRET_KEY: test-secret-key-for-ci-cd
+    DEBUG: "False"
+  before_script:
+    # Install system dependencies
+    - apt-get update && apt-get install -y gcc default-libmysqlclient-dev pkg-config netcat-openbsd
+    # Install Python dependencies
+    - pip install --no-cache-dir -r requirements.txt
+    - pip install pytest pytest-django pytest-cov
+    # Wait for services
+    - echo "Waiting for MySQL..."
+    - while ! nc -z mysql 3306; do sleep 1; done
+    - echo "Waiting for Redis..."
+    - while ! nc -z redis 6379; do sleep 1; done
+  script:
+    - echo "Running unit tests..."
+    - python manage.py collectstatic --noinput
+    - python manage.py migrate --noinput
+    - pytest --cov=ssoAuthServer --cov-report=xml --cov-report=term
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    expire_in: 1 week
+  only:
+    - merge_requests
+    - develop
+    - main
+
+# ==================== BUILD STAGE ====================
+build:docker:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - *docker_login
+  script:
+    - echo "Building Docker image..."
+    - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .
+    - docker push ${IMAGE_NAME}:${IMAGE_TAG}
+    - docker push ${IMAGE_NAME}:latest
+  only:
+    - develop
+    - main
+    - tags
+
+# ==================== DEPLOY STAGE ====================
+deploy:staging:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $STAGING_SERVER >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to staging environment..."
+    - |
+      ssh $STAGING_USER@$STAGING_SERVER << 'EOF'
+        cd /opt/sso-server
+        docker-compose pull
+        docker-compose up -d --force-recreate
+        docker-compose exec -T web python manage.py migrate --noinput
+        docker-compose exec -T web python manage.py collectstatic --noinput
+      EOF
+    - echo "Staging deployment complete!"
+  environment:
+    name: staging
+    url: https://sso-staging.yourdomain.com
+  only:
+    - develop
+  when: manual
+
+deploy:production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $PRODUCTION_SERVER >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to production environment..."
+    - |
+      ssh $PRODUCTION_USER@$PRODUCTION_SERVER << 'EOF'
+        cd /opt/sso-server
+        docker-compose pull
+        docker-compose up -d --force-recreate
+        docker-compose exec -T web python manage.py migrate --noinput
+        docker-compose exec -T web python manage.py collectstatic --noinput
+        # Generate new keys if they don't exist
+        docker-compose exec -T web python manage.py genkeys || true
+      EOF
+    - echo "Production deployment complete!"
+  environment:
+    name: production
+    url: https://sso.yourdomain.com
+  only:
+    - main
+    - tags
+  when: manual
+  needs:
+    - build:docker
+
+# ==================== ROLLBACK ====================
+rollback:production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $PRODUCTION_SERVER >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - echo "Rolling back production deployment..."
+    - |
+      ssh $PRODUCTION_USER@$PRODUCTION_SERVER << 'EOF'
+        cd /opt/sso-server
+        docker-compose down
+        docker-compose pull
+        docker-compose up -d
+      EOF
+    - echo "Rollback complete!"
+  environment:
+    name: production
+    url: https://sso.yourdomain.com
+    action: rollback
+  only:
+    - main
+  when: manual
