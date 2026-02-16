@@ -11,3 +11,4 @@ venv/
 templates/django-sso-test-library.code-workspace
 staticfiles/
 static/
+node_modules/
