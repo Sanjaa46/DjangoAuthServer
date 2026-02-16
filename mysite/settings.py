@@ -34,7 +34,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = ["*"]
-CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = True
 
 # Application definition
 
@@ -65,6 +65,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
     "http://127.0.0.1:8080",
+    "https://auth.monistore.mn",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -81,6 +82,10 @@ CORS_ALLOW_METHODS = [
     'PATCH',
     'POST',
     'PUT',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://auth.monistore.mn',
 ]
 
 ROOT_URLCONF = 'mysite.urls'
