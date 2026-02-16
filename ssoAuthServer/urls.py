@@ -2,7 +2,6 @@ from django.urls import path
 from . import views
 
 urlpatterns =[
-    path('', views.home, name='home'),
     path('.well-known/jwks.json', views.jwks_view),
     path("authorize", views.authorize, name="authorize"),
     path("login", views.login_view, name="login"),
