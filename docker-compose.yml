@@ -16,7 +16,6 @@ services:
 
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
     ports:
@@ -28,8 +27,7 @@ services:
       # Redis configuration
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # Database configuration (for external MySQL)
-      # Use your actual MySQL host IP or host.docker.internal for Docker Desktop
+      # Database configuration
       DB_NAME: ${DB_NAME:-django_app}
       DB_USER: ${DB_USER:-root}
       DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
