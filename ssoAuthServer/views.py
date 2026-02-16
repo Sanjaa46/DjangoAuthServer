@@ -81,57 +81,62 @@ def signup_view(request):
     otp = f"{random.randint(1000, 9999)}"
     cache.set(key, otp, timeout=300)  # OTP valid for 5 minutes
     
+    # Store state in session
+    request.session["signup_oauth"] = oauth_params
+    request.session["signup_phone"] = phone
+    request.session["signup_stage"] = "otp_sent"
+    request.session.save()
+    
     # Send SMS
     msg = f"OmniCapital: Таны баталгаажуулах код: {otp}. Код 5 минут хүчинтэй."
     res = send_sms(phone, msg)
 
     if res != "ok":
         return JsonResponse({"error": "sms_failed"}, status=500)
+    # print(f"OTP for {phone}: {otp}")  # For testing - in production, remove this line!
     
-    return JsonResponse({"result": "otp_sent"}, status=200)
+    return redirect("signup_verify")
 
-def confirm_otp_view(request):
+def signup_verify_view(request):
     """
     Verify OTP and return password token
     POST: Verifies OTP from cache and returns a pwd_token for password setup
     """
-    if request.method != "POST":
-        return JsonResponse({"error": "invalid_method"}, status=405)
-
-    phone = request.POST.get("phone")
-    otp = request.POST.get("otp")
-
-    if not phone or not otp:
-        return JsonResponse({"error": "phone_and_otp_required"}, status=400)
-
-    # Check if phone already exists
-    if AuthUser.objects.filter(phone=phone).exists():
-        return JsonResponse({"error": "phone_already_exists"}, status=400)
-
-    # Verify OTP from cache
-    key = otp_cache_key(phone, "signup")
-    cached_otp = cache.get(key)
-
-    if not cached_otp:
-        return JsonResponse({"error": "otp_expired"}, status=400)
-
-    if cached_otp != otp:
-        return JsonResponse({"error": "invalid_otp"}, status=400)
-
-    # OTP is valid - delete it from cache
-    cache.delete(key)
-
-    # Generate password token
-    pwd_token = secrets.token_urlsafe(32)
+    phone = request.session.get("signup_phone")
+    stage = request.session.get("signup_stage")
+    print(f"Signup verify view accessed. Stage: {stage}, Phone: {phone}")  # Debug log
     
-    # Store phone number with pwd_token in cache (valid for 10 minutes)
-    token_key = pwd_token_cache_key(pwd_token)
-    cache.set(token_key, phone, timeout=600)
+    if stage != "otp_sent" or not phone:
+        return redirect("signup")
+    
+    if request.method == "POST":
+        user_otp = request.POST.get("otp")
+        key = otp_cache_key(phone, "signup")
+        cached_otp = cache.get(key)
+        
+        if not cached_otp:
+            return render(request, "signup_verify.html", {"error": "OTP expired. Please request a new one."})
+        
+        if user_otp != cached_otp:
+            return render(request, "signup_verify.html", {"error": "Invalid OTP. Please try again."})
+        
+        # OTP is valid - delete it from cache
+        cache.delete(key)
 
-    return JsonResponse({
-        "result": "otp_verified",
-        "pwd_token": pwd_token
-    }, status=200)
+        # Generate password token
+        pwd_token = secrets.token_urlsafe(32)
+        
+        # Store phone number with pwd_token in cache (valid for 10 minutes)
+        token_key = pwd_token_cache_key(pwd_token)
+        cache.set(token_key, phone, timeout=600)
+        
+        request.session.pop("signup_phone", None)
+        request.session.pop("signup_stage", None)
+        request.session.save()
+        
+        return redirect(f"/signup/set_password?pwd_token={pwd_token}")
+    
+    return render(request, "signup_verify.html")
 
 
 def set_password_view(request):
@@ -139,54 +144,54 @@ def set_password_view(request):
     Set password for verified phone number
     POST: Verifies pwd_token, creates user, and sets password
     """
-    if request.method != "POST":
-        return JsonResponse({"error": "invalid_method"}, status=405)
-
-    pwd_token = request.POST.get("pwd_token")
-    password = request.POST.get("password")
-    password_confirm = request.POST.get("password_confirm")
-
-    if not pwd_token or not password:
-        return JsonResponse({"error": "pwd_token_and_password_required"}, status=400)
-
-    # Verify passwords match
-    if password != password_confirm:
-        return JsonResponse({"error": "passwords_do_not_match"}, status=400)
-
-    # Verify password token and get phone number
-    token_key = pwd_token_cache_key(pwd_token)
-    phone = cache.get(token_key)
-
-    if not phone:
-        return JsonResponse({"error": "invalid_or_expired_token"}, status=400)
-
-    # Check if user already exists (safety check)
-    if AuthUser.objects.filter(phone=phone).exists():
-        cache.delete(token_key)
-        return JsonResponse({"error": "user_already_exists"}, status=400)
-
-    # Validate password strength (optional - add your own rules)
-    if len(password) < 8:
-        return JsonResponse({"error": "password_too_short"}, status=400)
-
-    # Create user and set password
-    try:
-        user = AuthUser.objects.create(
-            phone=phone,
-            password_hash=make_password(password),
-            is_active=True
-        )
+    if request.method == "GET":
+        pwd_token = request.GET.get("pwd_token")
+        print(f"Received password setup request with token: {pwd_token}")  # Debug log
         
-        # Delete the password token from cache
-        cache.delete(token_key)
-
-        return JsonResponse({
-            "result": "user_created",
-            "user_id": user.id
-        }, status=201)
-
-    except Exception as e:
-        return JsonResponse({"error": f"user_creation_failed: {str(e)}"}, status=500)
+        if not pwd_token:
+            return redirect("signup")
+        
+        phone = cache.get(pwd_token_cache_key(pwd_token))
+        
+        if not phone:
+            return redirect("signup")
+        
+        return render(request, "signup_password.html", {"phone": phone, "pwd_token": pwd_token})
+    
+    if request.method == "POST":
+        pwd_token = request.POST.get("pwd_token")
+        phone = cache.get(pwd_token_cache_key(pwd_token))
+        print(f"Processing password setup. Token: {pwd_token}, Phone from cache: {phone}")  # Debug log
+        password = request.POST.get("password")
+        confirm_password = request.POST.get("confirm_password")
+        
+        if not password or not confirm_password:
+            return render(request, "signup_password.html", {"error": "Both password fields are required.", "phone": phone, "pwd_token": pwd_token})
+        
+        if password != confirm_password:
+            return render(request, "signup_password.html", {"error": "Passwords do not match.", "phone": phone, "pwd_token": pwd_token})
+        
+        # Create user
+        try:
+            user = AuthUser.objects.create(
+                phone=phone,
+                password_hash=make_password(password),
+                is_active=True
+            )
+            user.save()
+        except Exception as e:
+            print(f"Error creating user: {e}")
+            return render(request, "signup_password.html", {"error": "An error occurred while creating your account. Please try again.", "phone": phone, "pwd_token": pwd_token})
+        
+        # Clean up cache
+        cache.delete(pwd_token_cache_key(pwd_token))
+        oauth_params = request.session.pop("signup_oauth", {})
+        request.session.save()
+        
+        # Redirect to login with success message
+        messages.success(request, "Signup successful! Please log in.")
+        return redirect(f"/login?{urllib.parse.urlencode(oauth_params)}")
+    
 
 
 

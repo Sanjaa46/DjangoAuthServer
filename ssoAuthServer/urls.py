@@ -10,6 +10,6 @@ urlpatterns =[
     path("userinfo", views.userinfo, name="userinfo"),
     path("signup", views.signup_view, name="signup"),
     path("introspect", views.introspect, name="introspect"),
-    path('confirm_otp', views.confirm_otp_view, name='confirm_otp'),
-    path('set_password', views.set_password_view, name='set_password'),
+    path('signup/verify', views.signup_verify_view, name='signup_verify'),
+    path('signup/set_password', views.set_password_view, name='set_password'),
 ]

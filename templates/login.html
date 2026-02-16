@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSO Login</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+</head>
+<body>
+    <div class="min-h-screen flex items-center justify-center bg-gray-100">
+        <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6 text-center">SSO Login</h2>
+            <form method="POST" action="/login">
+                {% csrf_token %}
+                <input type="hidden" name="client_id" value="{{ params.client_id }}">
+                <input type="hidden" name="redirect_uri" value="{{ params.redirect_uri }}">
+                <input type="hidden" name="response_type" value="{{ params.response_type }}">
+                <input type="hidden" name="scope" value="{{ params.scope }}">
+                <input type="hidden" name="state" value="{{ params.state }}">
+                <input type="hidden" name="code_challenge" value="{{ params.code_challenge }}">
+                <input type="hidden" name="code_challenge_method" value="{{ params.code_challenge_method }}">
+
+                <div class="mb-4">
+                    <label for="phone" class="block text-gray-700">Phone</label>
+                    <input type="text" id="phone" name="phone" required class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-4">
+                    <label for="password" class="block text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" required class="w-full px-3 py-2 border rounded">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Login</button>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>
