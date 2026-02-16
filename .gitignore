@@ -9,3 +9,5 @@ db.sqlite3
 venv/
 .env
 templates/django-sso-test-library.code-workspace
+staticfiles/
+static/
