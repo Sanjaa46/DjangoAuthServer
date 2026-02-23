@@ -29,10 +29,11 @@ def send_sms(phone, text):
         SMS_URL = "https://callpro.moni.mn/api/method/monify_sms.message.send_msg"
         SMS_TIMEOUT = 10
         payload = {"utas_dugaar": phone, "text": text, "type": "otp", "doctype": "Daily"}
-        r = requests.post(SMS_URL, json=payload, timeout=SMS_TIMEOUT)
-        if r.status_code != 200:
-            print(f"SMS failed [{r.status_code}]: {r.text}", "send_sms")
-            return "error"
+        print(f"Sending SMS to {phone}: {text}")  # Debug log
+        # r = requests.post(SMS_URL, json=payload, timeout=SMS_TIMEOUT)
+        # if r.status_code != 200:
+        #     print(f"SMS failed [{r.status_code}]: {r.text}", "send_sms")
+        #     return "error"
         return "ok"
     except Exception:
         print("send_sms exception", "send_sms")
@@ -104,7 +105,6 @@ def signup_verify_view(request):
     """
     phone = request.session.get("signup_phone")
     stage = request.session.get("signup_stage")
-    print(f"Signup verify view accessed. Stage: {stage}, Phone: {phone}")  # Debug log
     
     if stage != "otp_sent" or not phone:
         return redirect("signup")
@@ -232,7 +232,8 @@ def authorize(request):
         return HttpResponseBadRequest("Invalid redirect_uri")
 
     # 4. Check existing SSO session
-    user_session_id = request.session.get("sso_session_id")
+    user_session_id = request.session.get("sso_sessionid")
+    print(user_session_id)
 
     if not user_session_id:
         # No SSO session → show login page
@@ -285,7 +286,6 @@ def authorize(request):
             })
         )
         return redirect(login_url)
-    # sso_session = Session.objects.get(pk="1")
     # 5. User is authenticated → issue authorization code
     code = secrets.token_urlsafe(32)
 
@@ -333,7 +333,6 @@ def login_view(request):
         return render(request, "login.html", {"params": oauth_params})
 
     # POST → handle login
-    # body = json.loads(request.body.decode())
     phone = request.POST.get("phone")
     password = request.POST.get("password")
 
