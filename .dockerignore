@@ -9,4 +9,4 @@ ENV/
 .env
 *.log
 *.DS_Store
-.vscode/
+.vscode/*
