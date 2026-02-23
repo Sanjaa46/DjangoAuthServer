@@ -1,4 +1,3 @@
-.vscode/
 ssoAuthServer/__pycache__/
 ssoAuthServer/migrations/
 ssoAuthServer/management/commands/__pycache__/
