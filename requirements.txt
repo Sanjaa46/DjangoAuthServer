@@ -16,6 +16,7 @@ iniconfig==2.3.0
 jwcrypto==1.5.6
 mysqlclient==2.2.7
 packaging==26.0
+passlib==1.7.4
 pluggy==1.6.0
 pycparser==2.23
 Pygments==2.19.2

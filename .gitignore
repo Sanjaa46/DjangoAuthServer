@@ -1,10 +1,10 @@
 ssoAuthServer/__pycache__/
-ssoAuthServer/migrations/
 ssoAuthServer/management/commands/__pycache__/
 mysite/__pycache__/
 ssoAuthServer/keys/
 db.sqlite3
 *.log
+*.pyc
 venv/
 .env
 staticfiles/

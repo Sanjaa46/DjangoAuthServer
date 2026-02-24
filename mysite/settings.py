@@ -160,6 +160,12 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Hashers
+PASSWORD_HASHERS = [
+    'ssoAuthServer.hashers.FrappePBKDF2Hasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
+
 # Redis cache configuration
 CACHES = {
     'default': {

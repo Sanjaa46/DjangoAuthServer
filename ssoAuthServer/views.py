@@ -13,10 +13,9 @@ from django.http import HttpResponseBadRequest
 from django.contrib.auth import logout as django_logout
 from .models import OAuthClient, AuthCode, Session, RefreshToken, AuthUser, AccessTokenBlacklist
 import base64
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.hashers import make_password
 from django.core.cache import cache
 import random
 import jwt
