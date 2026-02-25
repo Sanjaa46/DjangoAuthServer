@@ -763,3 +763,9 @@ def userinfo(request):
     }
 
     return JsonResponse(data)
+
+def reset_password():
+    pass
+
+def change_password():
+    pass
