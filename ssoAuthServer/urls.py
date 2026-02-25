@@ -12,4 +12,6 @@ urlpatterns =[
     path("introspect", views.introspect, name="introspect"),
     path('signup/verify', views.signup_verify_view, name='signup_verify'),
     path('signup/set_password', views.set_password_view, name='set_password'),
+    path('forgot-password', views.forgot_password_view, name='forgot_password'),
+    path('forgot-password/verify', views.forgot_password_verify_view, name='forgot_password_verify'),
 ]
