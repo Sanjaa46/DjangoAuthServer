@@ -192,3 +192,8 @@ SSO_PUBLIC_KEY_PATH  = BASE_DIR / "ssoAuthServer" / "keys" / "public_key.pem"
 SSO_ISS = "http://localhost:8000"   # issuer
 SSO_ACCESS_TOKEN_EXP = 900            # seconds
 SSO_REFRESH_TOKEN_EXP = 60 * 60 * 24 * 30  # 30 days
+
+
+# SMS api settings
+SMS_API_KEY = os.environ.get("SMS_API_KEY")
+SMS_API_SECRET = os.environ.get("SMS_API_SECRET")

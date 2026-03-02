@@ -28,11 +28,15 @@ def send_sms(phone, text):
         SMS_URL = "https://callpro.moni.mn/api/method/monify_sms.message.send_msg"
         SMS_TIMEOUT = 10
         payload = {"utas_dugaar": phone, "text": text, "type": "otp", "doctype": "Daily"}
-        print(f"Sending SMS to {phone}: {text}")  # Debug log
-        # r = requests.post(SMS_URL, json=payload, timeout=SMS_TIMEOUT)
-        # if r.status_code != 200:
-        #     print(f"SMS failed [{r.status_code}]: {r.text}", "send_sms")
-        #     return "error"
+        header = {
+            "content-type": "application/json",
+            "Authorization": f"token {settings.SMS_API_KEY}:{settings.SMS_API_SECRET}"
+        }
+        # print(f"Sending SMS to {phone}: {text}") 
+        r = requests.post(SMS_URL, json=payload, headers=header, timeout=SMS_TIMEOUT)
+        if r.status_code != 200:
+            print(f"SMS failed [{r.status_code}]: {r.text}", "send_sms")
+            return "error"
         return "ok"
     except Exception:
         print("send_sms exception", "send_sms")
