@@ -27,7 +27,7 @@ def send_sms(phone, text):
     try:
         SMS_URL = "https://callpro.moni.mn/api/method/monify_sms.message.send_msg"
         SMS_TIMEOUT = 10
-        payload = {"utas_dugaar": phone, "text": text, "type": "otp", "doctype": "Daily"}
+        payload = {"utas_dugaar": phone, "text": text, "type": "otp", "doctype": "Daily", "site": "Omnicapital"}
         header = {
             "content-type": "application/json",
             "Authorization": f"token {settings.SMS_API_KEY}:{settings.SMS_API_SECRET}"
